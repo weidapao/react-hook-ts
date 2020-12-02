@@ -1,35 +1,34 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-interface FetchState<T> {
-  data: T | undefined;
-  error: Error | undefined;
-  loading: boolean;
-}
-
-const useFetch = <T>(url: string): FetchState<T> => {
+const useFetch = <T>(initialUrl: string, initialParams: { [key: string]: any }={}) => {
   const [data, setData] = useState<T>();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | undefined>();
-  const fetchFn = useCallback(() => {
-    setLoading(true);
-    fetch(url).then(response => {
-      response
-        .json()
-        .then(data => {
-          setData(data);
-          setLoading(false);
-        })
-        .catch(err => {
-          setError(err);
-          setLoading(false);
-        });
-    });
-  }, [url])
-
+  const [params, setParams] = useState(initialParams)
+  const [url, setUrl] = useState(initialUrl)
+  const [count, setCount] = useState(0);
+  const reFetch = () => {
+    setCount(count => count + 1);
+  };
+  const queryString = Object.keys(params)
+    .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]))
+    .join('&');
   useEffect(() => {
+    const fetchFn = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`${url}${queryString}`);
+        const result = await response.json();
+        setData(result);
+        setLoading(false);
+      } catch (err) {
+        setError(err);
+        setLoading(false);
+      }
+    };
     fetchFn();
-  }, [fetchFn]);
-  return { data, error, loading};
+  }, [url, params, count]);
+  return [data, error, loading, reFetch,setUrl,setParams] as const;
 };
 
 export default useFetch;
